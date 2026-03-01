@@ -53,6 +53,7 @@ interface Metadata {
 
 export default function SearchPage() {
     const [requirements, setRequirements] = useState<ExtractedRequirement[]>([])
+    const [queryText, setQueryText] = useState("")
     const [suppliers, setSuppliers] = useState<Supplier[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [view, setView] = useState<"list" | "map">("list")
@@ -92,7 +93,14 @@ export default function SearchPage() {
     useEffect(() => {
         const saved = localStorage.getItem("aria_requirements")
         if (saved) {
-            setRequirements(JSON.parse(saved))
+            const parsedReqs = JSON.parse(saved)
+            setRequirements(parsedReqs)
+
+            // Initialize query text from requirements
+            const initialQuery = Array.isArray(parsedReqs)
+                ? parsedReqs.filter((r: any) => r && r.value).map((r: any) => r.value).join(". ")
+                : ""
+            setQueryText(initialQuery)
         }
 
         fetch("/api/metadata")
@@ -187,9 +195,9 @@ export default function SearchPage() {
 
     const handleSearch = useCallback(async () => {
         setIsLoading(true)
-        const query = Array.isArray(requirements)
+        const query = queryText || (Array.isArray(requirements)
             ? requirements.filter(r => r && r.value).map(r => r.value).join(". ")
-            : ""
+            : "")
 
         try {
             const response = await fetch("/api/discovery", {
@@ -235,15 +243,24 @@ export default function SearchPage() {
         } finally {
             setIsLoading(false)
         }
-    }, [requirements, selectedCerts, selectedRegs, selectedCountries, city, radius, strictMode, topK])
+    }, [requirements, selectedCerts, selectedRegs, selectedCountries, city, radius, strictMode, topK, queryText])
+
+    // Auto-trigger search when queryText or requirements are first loaded
+    useEffect(() => {
+        if (queryText && !isLoading && suppliers.length === 0) {
+            handleSearch()
+        }
+    }, [queryText, handleSearch, isLoading, suppliers.length])
 
     // Multi-select helper
-    const toggleSelection = (list: string[], setList: (v: string[]) => void, item: string) => {
-        if (list.includes(item)) {
-            setList(list.filter(i => i !== item))
-        } else {
-            setList([...list, item])
-        }
+    const toggleSelection = (list: string[], setList: React.Dispatch<React.SetStateAction<string[]>>, item: string) => {
+        setList((prev: string[]) => {
+            if (prev.includes(item)) {
+                return prev.filter(i => i !== item)
+            } else {
+                return [...prev, item]
+            }
+        })
     }
 
     return (
@@ -252,30 +269,48 @@ export default function SearchPage() {
             <div className="flex h-[calc(100vh-64px)] overflow-hidden">
                 {/* Sidebar Filters */}
                 <aside className="w-85 border-r border-border bg-card p-6 overflow-y-auto hidden lg:block shadow-sm">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                            <Filter className="h-4 w-4 text-primary" /> Discovery Filters
-                        </h2>
-                        <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 className="text-xl font-black text-foreground flex items-center gap-2 tracking-tight">
+                                <Filter className="h-5 w-5 text-primary" /> DISCOVERY
+                            </h2>
+                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Engine Configuration</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5">
                             <div className="flex items-center gap-1.5" title={backendStatus === "online" ? "Backend connected" : "Backend unreachable"}>
-                                <div className={cn("h-2 w-2 rounded-full",
-                                    backendStatus === "online" ? "bg-success animate-pulse" :
+                                <div className={cn("h-1.5 w-1.5 rounded-full",
+                                    backendStatus === "online" ? "bg-success shadow-[0_0_8px_rgba(34,197,94,0.6)]" :
                                         backendStatus === "offline" ? "bg-destructive" : "bg-muted")}
                                 />
-                                <span className="text-[9px] font-black uppercase tracking-tighter text-muted-foreground">{backendStatus}</span>
+                                <span className="text-[8px] font-black uppercase tracking-tighter text-muted-foreground">{backendStatus}</span>
                             </div>
-                            <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold text-muted-foreground uppercase" onClick={() => {
+                            <button className="text-[9px] font-black text-primary/60 hover:text-primary transition-colors uppercase tracking-tighter" onClick={() => {
                                 setSelectedCerts([])
                                 setSelectedRegs([])
                                 setSelectedCountries([])
                                 setCity("")
-                            }}>ClearAll</Button>
+                                setQueryText("")
+                            }}>Reset All</button>
                         </div>
                     </div>
 
                     <div className="space-y-6">
-                        {/* Country Selector */}
+                        {/* Query Selector */}
                         <div className="space-y-3">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Search Query</Label>
+                            <div className="relative group/query">
+                                <textarea
+                                    placeholder="Enter technical requirements..."
+                                    className="w-full min-h-[100px] text-xs bg-background/50 border border-border rounded-lg p-3 focus:ring-1 focus:ring-primary outline-none resize-none transition-all"
+                                    value={queryText}
+                                    onChange={e => setQueryText(e.target.value)}
+                                />
+                                <div className="absolute right-2 bottom-2 text-[9px] text-muted-foreground/30 font-medium">AI Enhanced</div>
+                            </div>
+                        </div>
+
+                        {/* Country Selector */}
+                        <div className="space-y-3 pt-4 border-t border-border">
                             <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Operating Countries</Label>
                             <div className="flex flex-wrap gap-1.5 min-h-[40px] p-2 rounded-lg border border-border bg-background/50 focus-within:ring-1 focus-within:ring-primary transition-all">
                                 {selectedCountries.length === 0 && <span className="text-xs text-muted-foreground/50 py-1">Type to add countries...</span>}
