@@ -622,7 +622,9 @@ export default function SearchPage() {
                                                 <TableCell className="py-4">
                                                     {(supplier.distance_km !== null && supplier.distance_km !== undefined) ? (
                                                         <Badge variant="outline" className="text-[10px] font-black bg-primary/5 text-primary border-primary/10 h-5">
-                                                            {Math.round(Number(supplier.distance_km))} KM
+                                                            {Number(supplier.distance_km) < 1
+                                                                ? `${Math.round(Number(supplier.distance_km) * 1000)} M`
+                                                                : `${Math.round(Number(supplier.distance_km))} KM`}
                                                         </Badge>
                                                     ) : (
                                                         <span className="text-[10px] text-muted-foreground/40 font-bold">—</span>

@@ -41,6 +41,17 @@ export function Navbar() {
             >
               Discovery
             </Link>
+            <Link
+              href="/ingest"
+              className={cn(
+                "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                pathname === "/ingest"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              )}
+            >
+              Ingest
+            </Link>
           </nav>
         </div>
       </div>
