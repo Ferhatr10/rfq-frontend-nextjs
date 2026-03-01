@@ -96,11 +96,14 @@ export default function SearchPage() {
             const parsedReqs = JSON.parse(saved)
             setRequirements(parsedReqs)
 
-            // Initialize query text from requirements
-            const initialQuery = Array.isArray(parsedReqs)
-                ? parsedReqs.filter((r: any) => r && r.value).map((r: any) => r.value).join(". ")
-                : ""
-            setQueryText(initialQuery)
+            // Set initial query text immediately
+            if (Array.isArray(parsedReqs)) {
+                const initialQuery = parsedReqs
+                    .filter((r: any) => r && r.value)
+                    .map((r: any) => r.value)
+                    .join(". ")
+                setQueryText(initialQuery)
+            }
         }
 
         fetch("/api/metadata")
@@ -110,13 +113,51 @@ export default function SearchPage() {
             })
             .then(data => {
                 if (data.success) {
-                    setMetadata({
+                    const meta = {
                         countries: data.countries || [],
                         cities: data.cities || [],
                         certifications: data.certifications || [],
                         regulatory: data.regulatory || []
-                    })
+                    }
+                    setMetadata(meta)
                     setBackendStatus("online")
+
+                    // Intelligent mapping: Only add to filters if they exist in metadata
+                    const saved = localStorage.getItem("aria_requirements")
+                    if (saved) {
+                        const parsedReqs = JSON.parse(saved)
+                        if (Array.isArray(parsedReqs)) {
+                            const certsToAdd: string[] = []
+                            const regsToAdd: string[] = []
+
+                            parsedReqs.forEach((r: any) => {
+                                if (!r || !r.label || !r.value) return
+                                const label = r.label.toLowerCase()
+                                const values = r.value.split(",").map((v: string) => v.trim())
+
+                                if (label.includes("certification")) {
+                                    // Only add if it exists in DB metadata
+                                    values.forEach((v: string) => {
+                                        if (meta.certifications.some((m: string) => m.toLowerCase() === v.toLowerCase())) {
+                                            const match = meta.certifications.find((m: string) => m.toLowerCase() === v.toLowerCase())
+                                            if (match) certsToAdd.push(match)
+                                        }
+                                    })
+                                } else if (label.includes("regulatory")) {
+                                    // Only add if it exists in DB metadata
+                                    values.forEach((v: string) => {
+                                        if (meta.regulatory.some((m: string) => m.toLowerCase() === v.toLowerCase())) {
+                                            const match = meta.regulatory.find((m: string) => m.toLowerCase() === v.toLowerCase())
+                                            if (match) regsToAdd.push(match)
+                                        }
+                                    })
+                                }
+                            })
+
+                            if (certsToAdd.length > 0) setSelectedCerts(Array.from(new Set(certsToAdd)))
+                            if (regsToAdd.length > 0) setSelectedRegs(Array.from(new Set(regsToAdd)))
+                        }
+                    }
                 } else {
                     setBackendStatus("offline")
                 }

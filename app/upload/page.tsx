@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { FileUploader } from "@/components/file-uploader"
@@ -15,30 +15,56 @@ export default function UploadPage() {
     const [requirements, setRequirements] = useState<ExtractedRequirement[]>([])
     const [errorMessage, setErrorMessage] = useState("")
 
+    // Hydration from localStorage
+    useEffect(() => {
+        const saved = localStorage.getItem("aria_requirements")
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved)
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setRequirements(parsed)
+                    setPhase("results")
+                }
+            } catch (e) {
+                console.error("Failed to parse saved requirements:", e)
+            }
+        }
+    }, [])
+
+    // Helper to update requirements and persist
+    const updateAndPersist = (newRequirements: ExtractedRequirement[]) => {
+        setRequirements(newRequirements)
+        localStorage.setItem("aria_requirements", JSON.stringify(newRequirements))
+    }
+
     const handleAnalysisComplete = (extractedRequirements: ExtractedRequirement[]) => {
-        setRequirements(extractedRequirements)
+        updateAndPersist(extractedRequirements)
         setPhase("results")
     }
 
     const handleValueChange = (id: string, newValue: string) => {
-        setRequirements(prev => prev.map(req =>
+        const updated = requirements.map(req =>
             req.id === id ? { ...req, value: newValue } : req
-        ))
+        )
+        updateAndPersist(updated)
     }
 
     const handleRemoveRequirement = (id: string) => {
-        setRequirements(prev => prev.filter(req => req.id !== id))
+        const updated = requirements.filter(req => req.id !== id)
+        updateAndPersist(updated)
     }
 
     const handleAddRequirement = () => {
         const newId = `manual-${Date.now()}`
-        setRequirements(prev => [
+        const updated = [
             { id: newId, label: "Manual Requirement", value: "", confidence: 100 },
-            ...prev
-        ])
+            ...requirements
+        ]
+        updateAndPersist(updated)
     }
 
     const handleFindSuppliers = () => {
+        // Already persisted via updateAndPersist, but reinforcing for safety
         localStorage.setItem("aria_requirements", JSON.stringify(requirements))
         router.push("/search")
     }
