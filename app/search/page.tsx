@@ -76,6 +76,7 @@ export default function SearchPage() {
     const [strictMode, setStrictMode] = useState(true)
     const [topK, setTopK] = useState(10)
     const [backendStatus, setBackendStatus] = useState<"checking" | "online" | "offline">("checking")
+    const [isMetadataLoaded, setIsMetadataLoaded] = useState(false)
     const [geoError, setGeoError] = useState<string | null>(null)
 
     // Manual Entry States
@@ -158,13 +159,16 @@ export default function SearchPage() {
                             if (regsToAdd.length > 0) setSelectedRegs(Array.from(new Set(regsToAdd)))
                         }
                     }
+                    setIsMetadataLoaded(true)
                 } else {
                     setBackendStatus("offline")
+                    setIsMetadataLoaded(true) // Set to true even if offline to allow search attempt
                 }
             })
             .catch(err => {
                 console.error("Filter metadata fetch failed:", err)
                 setBackendStatus("offline")
+                setIsMetadataLoaded(true)
             })
     }, [])
 
@@ -287,11 +291,12 @@ export default function SearchPage() {
     }, [requirements, selectedCerts, selectedRegs, selectedCountries, city, radius, strictMode, topK, queryText])
 
     // Auto-trigger search when queryText or requirements are first loaded
+    // Now coordination with isMetadataLoaded to ensure Smart Mapping is applied first
     useEffect(() => {
-        if (queryText && !isLoading && suppliers.length === 0) {
+        if (isMetadataLoaded && queryText && !isLoading && suppliers.length === 0) {
             handleSearch()
         }
-    }, [queryText, handleSearch, isLoading, suppliers.length])
+    }, [isMetadataLoaded, queryText, handleSearch, isLoading, suppliers.length])
 
     // Multi-select helper
     const toggleSelection = (list: string[], setList: React.Dispatch<React.SetStateAction<string[]>>, item: string) => {
