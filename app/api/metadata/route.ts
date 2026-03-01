@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
+import { API_BASE_URL } from "@/lib/api-config"
 
 export async function GET() {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || API_BASE_URL
 
     try {
         const response = await fetch(`${API_URL}/metadata`, {
